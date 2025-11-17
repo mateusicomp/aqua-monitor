@@ -83,6 +83,37 @@ Isso instalará todas as dependências listadas no `package.json`, incluindo:
 
 ---
 
+## 🏃 Executando o Projeto
+
+### Modo Desenvolvimento (Navegador)
+
+```bash
+ionic serve
+```
+
+O aplicativo abrirá automaticamente em `http://localhost:8100`
+
+**Modo de visualização mobile:**
+- Pressione `F12` no navegador para acessar o DevTools
+- Clique no ícone de dispositivo móvel (Device Toolbar)
+- Selecione um dispositivo móvel (ex: iPhone, Samsung Galaxy)
+
+### Build para Produção (ainda em andamento)
+
+```bash
+ionic build --prod
+```
+
+---
+
+## 📸 Screenshots
+
+Imagem do aplicativo 
+
+![Screenshot do App](./src/docs/Home-inicial.png)
+
+---
+
 ## ⚙️ Configuração do Firebase
 
 O projeto utiliza **Firebase Firestore** para armazenamento e sincronização de dados em tempo real.
@@ -173,37 +204,6 @@ Crie uma coleção chamada `telemetry` com documentos no formato do exemplo:
   "fw": { "app": "safra-dourada-probe", "ver": "0.6.3" }
 }
 ```
-
----
-
-## 🏃 Executando o Projeto
-
-### Modo Desenvolvimento (Navegador)
-
-```bash
-ionic serve
-```
-
-O aplicativo abrirá automaticamente em `http://localhost:8100`
-
-**Modo de visualização mobile:**
-- Pressione `F12` no navegador para acessar o DevTools
-- Clique no ícone de dispositivo móvel (Device Toolbar)
-- Selecione um dispositivo móvel (ex: iPhone, Samsung Galaxy)
-
-### Build para Produção (ainda em andamento)
-
-```bash
-ionic build --prod
-```
-
----
-
-## 📸 Screenshots
-
-Imagem do aplicativo 
-
-![Screenshot do App](./src/docs/Home-inicial.png)
 
 ---
 
