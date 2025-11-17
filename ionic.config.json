@@ -1,0 +1,7 @@
+{
+  "name": "aqua-monitor",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
