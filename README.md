@@ -211,7 +211,15 @@ Crie uma coleção chamada `telemetry` com documentos no formato do exemplo:
 
 ### Android
 
-**1. Adicionar plataforma Android:**
+**0. Java 21 (requerido pelo Gradle/Capacitor 7):**
+```bash
+brew install openjdk@21
+echo 'export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"' >> ~/.zshrc
+echo 'export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"' >> ~/.zshrc
+exec $SHELL
+```
+
+**1. Adicionar plataforma Android (somente na primeira vez):**
 ```bash
 ionic capacitor add android
 ```
@@ -222,7 +230,15 @@ ionic build
 ionic capacitor sync android
 ```
 
-**3. Abrir no Android Studio:**
+**3. Rodar direto no emulador (exemplo):**
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
+PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH" \
+npx cap run android --target emulator-5556
+```
+> Altere `emulator-5556` para o ID retornado por `adb devices`.
+
+**4. Abrir no Android Studio (opcional):**
 ```bash
 ionic capacitor open android
 ```
