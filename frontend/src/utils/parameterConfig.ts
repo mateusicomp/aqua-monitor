@@ -31,11 +31,5 @@ export const PARAMETER_CONFIG: Record<Measurement['parameter'], ParameterConfig>
     icon: 'water-outline',
     color: '#A855F7',
     barColor: '#C084FC'
-  },
-  od: {
-    label: 'Oxigênio Dissolvido',
-    icon: 'fish-outline',
-    color: '#10B981',
-    barColor: '#34D399'
   }
 };

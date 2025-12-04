@@ -9,9 +9,16 @@ interface IdealRangeBarProps {
 }
 
 export const IdealRangeBar: React.FC<IdealRangeBarProps> = ({ parameter, value }) => {
-  const position = getPositionInRange(parameter, value);
   const range = IDEAL_RANGES[parameter];
   const config = PARAMETER_CONFIG[parameter];
+  
+  // Proteção: Se não houver configuração, não renderiza
+  if (!range || !config) {
+    console.warn(`Range ou config não encontrado para parâmetro: ${parameter}`);
+    return null;
+  }
+  
+  const position = getPositionInRange(parameter, value);
 
   return (
     <div className="mt-3">

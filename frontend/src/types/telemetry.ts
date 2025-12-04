@@ -1,5 +1,5 @@
 export interface Measurement {
-  parameter: 'pH' | 'temperature' | 'turbidity' | 'tds' | 'od';
+  parameter: 'pH' | 'temperature' | 'turbidity' | 'tds';
   value: number;
   unit: string;
 }

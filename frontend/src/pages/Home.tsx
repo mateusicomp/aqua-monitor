@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, MessageCircle, X } from 'lucide-react';
 import { HeaderCard } from '../components/HeaderCard';
 import { Tabs } from '../components/Tabs';
 import { MetricCard } from '../components/MetricCard';
+import { HistoryView } from '../components/HistoryView';
+import { ChatbotView } from '../components/ChatbotView';
+import { MeasureButton } from '../components/MeasureButton';
 import { TelemetryData } from '../types/telemetry';
 import { subscribeToLatestTelemetry } from '../services/firestore';
 
@@ -14,6 +17,7 @@ const Home: React.FC = () => {
   const [telemetryData, setTelemetryData] = useState<TelemetryData | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     setLoadingState('loading');
@@ -54,7 +58,7 @@ const Home: React.FC = () => {
       />
 
       <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
-
+   
       <div className="p-4">
         {activeTab === 'monitor' && (
           <>
@@ -111,7 +115,7 @@ const Home: React.FC = () => {
                 {/* Cards de métricas */}
                 <div className="space-y-4">
                   {telemetryData.measurements.map((measurement, index) => (
-                    <MetricCard
+                    <MetricCard 
                       key={`${measurement.parameter}-${index}`}
                       measurement={measurement}
                     />
@@ -123,11 +127,41 @@ const Home: React.FC = () => {
         )}
 
         {activeTab === 'historico' && (
-          <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
-            <p className="text-gray-500">Funcionalidade de histórico em desenvolvimento</p>
-          </div>
+          <HistoryView currentData={telemetryData} />
         )}
       </div>
+
+      {/* Botão de Chatbot */}
+      {!showChat && (
+        <button
+          onClick={() => setShowChat(true)}
+          className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-4 rounded-full shadow-xl hover:from-teal-700 hover:to-cyan-700 transition-all active:scale-95"
+          aria-label="Abrir assistente"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Modal do Chatbot */}
+      {showChat && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="bg-white w-full md:max-w-2xl h-[100vh] md:h-[600px] md:rounded-2xl shadow-2xl relative animate-in slide-in-from-bottom duration-300">
+            <button
+              onClick={() => setShowChat(false)}
+              className="absolute top-4 right-4 z-10 bg-white/90 text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Fechar assistente"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <ChatbotView />
+          </div>
+        </div>
+      )}
+
+      {/* Botão MQTT de Aferir Qualidade */}
+      {loadingState === 'success' && telemetryData && !showChat && (
+        <MeasureButton deviceId={telemetryData.device_id} />
+      )}
     </div>
   );
 };
