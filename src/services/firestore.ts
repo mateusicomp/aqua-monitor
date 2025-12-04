@@ -10,15 +10,14 @@ import {
 } from 'firebase/firestore';
 
 
-// Credential settings
 const firebaseConfig = {
-  apiKey: "AIzaSyB4nDY7o1yqFgwZ_pJSB0WT8attVFpnbXU",
-  authDomain: "monitor-viveiro.firebaseapp.com",
-  projectId: "monitor-viveiro",
-  storageBucket: "monitor-viveiro.firebasestorage.app",
-  messagingSenderId: "379487112181",
-  appId: "1:379487112181:web:52485a91ec231dd3fcaebc",
-  measurementId: "G-HEW7Z0G3DJ"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
