@@ -393,9 +393,6 @@ void setup() {
   connectWiFi();
   syncTime();
 
-  testHttpsGoogle();   // <<< TESTE
-  testHttpExample();
-
   Serial.println("Pronto. Aplique 3.3 V ao pino de gatilho (GPIO27) para enviar telemetria.");
 }
 
@@ -412,65 +409,4 @@ void loop() {
 
   lastTriggerState = triggerState;
   delay(20); // varredura leve
-}
-
-void testHttpsGoogle() {
-  if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("[TEST] Sem WiFi, abortando testHttpsGoogle.");
-      return;
-    }
-  }
-
-  HTTPClient http;
-  String url = "https://www.google.com";
-
-  Serial.println("[TEST] Fazendo GET em https://www.google.com ...");
-
-  if (!http.begin(url)) {
-    Serial.println("[TEST] http.begin falhou.");
-    return;
-  }
-
-  int code = http.GET();
-  Serial.printf("[TEST] GET google.com -> HTTP %d (%s)\n",
-                code, http.errorToString(code).c_str());
-
-  String resp = http.getString();
-  Serial.println("[TEST] Resp (primeiros 200 chars):");
-  Serial.println(resp.substring(0, 200));
-
-  http.end();
-}
-
-
-void testHttpExample() {
-  if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("[TEST] Sem WiFi, abortando testHttpExample.");
-      return;
-    }
-  }
-
-  HTTPClient http;
-  String url = "http://example.com";
-
-  Serial.println("[TEST] Fazendo GET em http://example.com ...");
-
-  if (!http.begin(url)) {
-    Serial.println("[TEST] http.begin falhou.");
-    return;
-  }
-
-  int code = http.GET();
-  Serial.printf("[TEST] GET example.com -> HTTP %d (%s)\n",
-                code, http.errorToString(code).c_str());
-
-  String resp = http.getString();
-  Serial.println("[TEST] Resp (primeiros 200 chars):");
-  Serial.println(resp.substring(0, 200));
-
-  http.end();
 }
