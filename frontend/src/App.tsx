@@ -30,7 +30,7 @@ const App: React.FC = () => {
   return (
     <IonApp>
       <IonPage>
-        <IonContent>
+        <IonContent fullscreen>
           <Home />
         </IonContent>
       </IonPage>

@@ -323,7 +323,7 @@ ionic capacitor open ios
 │   ├── IdealRangeBar.tsx   # Barra de progresso com faixa ideal
 │   ├── HistoryView.tsx     # Tela de histórico com gráficos
 │   ├── ChatbotView.tsx     # Interface do chatbot
-│   └── MeasureButton.tsx   # Botão flutuante para aferir qualidade
+│   └── MeasureButton.tsx   # Botões flutuantes para coleta de dados e chatboot
 ├── services/
 │   ├── firestore.ts        # Integração com Firebase/Firestore
 │   └── mqtt.ts             # Serviço MQTT para controle da ESP32

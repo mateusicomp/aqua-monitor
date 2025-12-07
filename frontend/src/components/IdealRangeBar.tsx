@@ -3,6 +3,7 @@ import { getPositionInRange, IDEAL_RANGES } from '../utils/idealRanges';
 import { Measurement } from '../types/telemetry';
 import { PARAMETER_CONFIG } from '../utils/parameterConfig';
 
+
 interface IdealRangeBarProps {
   parameter: Measurement['parameter'];
   value: number;
@@ -12,7 +13,6 @@ export const IdealRangeBar: React.FC<IdealRangeBarProps> = ({ parameter, value }
   const range = IDEAL_RANGES[parameter];
   const config = PARAMETER_CONFIG[parameter];
   
-  // Proteção: Se não houver configuração, não renderiza
   if (!range || !config) {
     console.warn(`Range ou config não encontrado para parâmetro: ${parameter}`);
     return null;

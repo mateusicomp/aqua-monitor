@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
 
+
 interface Message {
   id: string;
   text: string;
@@ -88,30 +89,76 @@ export const ChatbotView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '100%',
+      backgroundColor: 'white',
+      overflow: 'hidden'
+    }}>
+      
       {/* Header do Chat */}
-      <div className="bg-gradient-to-r from-teal-600 to-cyan-600 p-4 text-white">
-        <div className="flex items-center gap-3">
-          <div className="bg-white/20 p-2 rounded-full">
-            <Sparkles className="w-5 h-5" />
+      <div style={{
+        background: 'linear-gradient(to right, #0d9488, #0891b2)',
+        padding: '16px',
+        color: 'white',
+        flexShrink: 0
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            padding: '8px',
+            borderRadius: '9999px'
+          }}>
+            <Sparkles style={{ width: '20px', height: '20px' }} />
           </div>
           <div>
-            <h3>Assistente Inteligente</h3>
-            <p className="text-xs opacity-90">Tire suas dúvidas sobre qualidade da água</p>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: 'white' }}>
+              Assistente Inteligente
+            </h3>
+            <p style={{ fontSize: '12px', opacity: 0.9, margin: '2px 0 0 0', color: 'white' }}>
+              Tire suas dúvidas sobre qualidade da água
+            </p>
           </div>
         </div>
       </div>
 
       {/* Sugestões de Perguntas */}
       {messages.length <= 1 && (
-        <div className="p-4 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-          <p className="text-xs text-gray-500 mb-3">Sugestões de perguntas:</p>
-          <div className="flex flex-wrap gap-2">
+        <div style={{
+          padding: '16px',
+          background: 'linear-gradient(to bottom, #F9FAFB, white)',
+          borderBottom: '1px solid #F3F4F6',
+          flexShrink: 0
+        }}>
+          <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '12px', marginTop: 0 }}>
+            Sugestões de perguntas:
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {suggestedQuestions.map((question, index) => (
               <button
                 key={index}
                 onClick={() => handleSuggestionClick(question)}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 hover:border-teal-500 hover:text-teal-600 transition-all hover:shadow-sm"
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#0d9488';
+                  e.currentTarget.style.color = '#0d9488';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                  e.currentTarget.style.color = '#374151';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
                 {question}
               </button>
@@ -121,41 +168,71 @@ export const ChatbotView: React.FC = () => {
       )}
 
       {/* Área de Mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        minHeight: 0
+      }}>
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex items-start gap-3 ${
-              message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
-            }`}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              flexDirection: message.sender === 'user' ? 'row-reverse' : 'row'
+            }}
           >
             {/* Avatar */}
-            <div className={`
-              flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
-              ${message.sender === 'bot' 
-                ? 'bg-gradient-to-br from-teal-500 to-cyan-600' 
-                : 'bg-gray-300'
-              }
-            `}>
+            <div style={{
+              flexShrink: 0,
+              width: '32px',
+              height: '32px',
+              borderRadius: '9999px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: message.sender === 'bot' 
+                ? 'linear-gradient(to bottom right, #14b8a6, #0891b2)'
+                : '#D1D5DB'
+            }}>
               {message.sender === 'bot' ? (
-                <Bot className="w-5 h-5 text-white" />
+                <Bot style={{ width: '20px', height: '20px', color: 'white' }} />
               ) : (
-                <User className="w-5 h-5 text-gray-600" />
+                <User style={{ width: '20px', height: '20px', color: '#4B5563' }} />
               )}
             </div>
 
             {/* Balão de Mensagem */}
-            <div className={`
-              max-w-[75%] rounded-2xl px-4 py-3
-              ${message.sender === 'bot'
-                ? 'bg-gray-100 text-gray-800 rounded-tl-none'
-                : 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-tr-none'
-              }
-            `}>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
-              <p className={`text-xs mt-1 ${
-                message.sender === 'bot' ? 'text-gray-400' : 'text-white/70'
-              }`}>
+            <div style={{
+              maxWidth: '75%',
+              borderRadius: '16px',
+              padding: '12px 16px',
+              background: message.sender === 'bot'
+                ? '#F3F4F6'
+                : 'linear-gradient(to right, #0d9488, #0891b2)',
+              color: message.sender === 'bot' ? '#1F2937' : 'white',
+              borderTopLeftRadius: message.sender === 'bot' ? '4px' : '16px',
+              borderTopRightRadius: message.sender === 'user' ? '4px' : '16px'
+            }}>
+              <p style={{ 
+                fontSize: '14px', 
+                lineHeight: '1.5', 
+                whiteSpace: 'pre-wrap',
+                margin: 0
+              }}>
+                {message.text}
+              </p>
+              <p style={{
+                fontSize: '12px',
+                marginTop: '4px',
+                marginBottom: 0,
+                color: message.sender === 'bot' ? '#9CA3AF' : 'rgba(255,255,255,0.7)'
+              }}>
                 {message.timestamp.toLocaleTimeString('pt-BR', { 
                   hour: '2-digit', 
                   minute: '2-digit' 
@@ -167,15 +244,43 @@ export const ChatbotView: React.FC = () => {
 
         {/* Indicador de digitação */}
         {isTyping && (
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px'
+          }}>
+            <div style={{
+              flexShrink: 0,
+              width: '32px',
+              height: '32px',
+              borderRadius: '9999px',
+              background: 'linear-gradient(to bottom right, #14b8a6, #0891b2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Bot style={{ width: '20px', height: '20px', color: 'white' }} />
             </div>
-            <div className="bg-gray-100 rounded-2xl rounded-tl-none px-4 py-3">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div style={{
+              backgroundColor: '#F3F4F6',
+              borderRadius: '16px',
+              borderTopLeftRadius: '4px',
+              padding: '12px 16px'
+            }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {[0, 150, 300].map((delay, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      backgroundColor: '#9CA3AF',
+                      borderRadius: '9999px',
+                      animation: 'bounce 1s infinite',
+                      animationDelay: `${delay}ms`
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -185,52 +290,98 @@ export const ChatbotView: React.FC = () => {
       </div>
 
       {/* Input de Mensagem */}
-      <div className="p-4 border-t border-gray-100 bg-white">
-        <div className="flex gap-2 items-end">
+      <div style={{
+        padding: '16px',
+        borderTop: '1px solid #F3F4F6',
+        backgroundColor: 'white',
+        flexShrink: 0
+      }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
           <textarea
             ref={textareaRef}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua pergunta..."
-            className="flex-1 resize-none overflow-hidden px-4 py-3 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm max-h-32"
-            rows={1}
             disabled={isTyping}
+            rows={1}
+            style={{
+              flex: 1,
+              resize: 'none',
+              overflow: 'hidden',
+              padding: '12px 16px',
+              backgroundColor: '#F3F4F6',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '14px',
+              maxHeight: '128px',
+              outline: 'none',
+              fontFamily: 'inherit'
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 0 2px #0d9488';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           />
           <button
             onClick={() => handleSendMessage(inputText)}
             disabled={!inputText.trim() || isTyping}
-            className="flex-shrink-0 bg-gradient-to-r from-teal-600 to-cyan-600 text-white p-3 rounded-xl hover:from-teal-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
-            aria-label="Enviar mensagem"
+            style={{
+              flexShrink: 0,
+              background: 'linear-gradient(to right, #0d9488, #0891b2)',
+              color: 'white',
+              padding: '12px',
+              borderRadius: '12px',
+              border: 'none',
+              cursor: inputText.trim() && !isTyping ? 'pointer' : 'not-allowed',
+              opacity: inputText.trim() && !isTyping ? 1 : 0.5,
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onMouseEnter={(e) => {
+              if (inputText.trim() && !isTyping) {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
           >
-            <Send className="w-5 h-5" />
+            <Send style={{ width: '20px', height: '20px' }} />
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-2 text-center">
+        <p style={{
+          fontSize: '12px',
+          color: '#9CA3AF',
+          marginTop: '8px',
+          marginBottom: 0,
+          textAlign: 'center'
+        }}>
           Pressione Enter para enviar, Shift+Enter para nova linha
         </p>
       </div>
+
+      {/* CSS para animação de bounce */}
+      <style>{`
+        @keyframes bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-5px);
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
 /**
  * Mock de resposta da LLM - substituir por chamada real à API
- * 
- * IMPLEMENTAÇÃO REAL:
- * 
- * const generateResponse = async (userMessage: string): Promise<string> => {
- *   const response = await fetch('https://seu-backend.com/api/chat', {
- *     method: 'POST',
- *     headers: { 'Content-Type': 'application/json' },
- *     body: JSON.stringify({ 
- *       message: userMessage,
- *       context: 'aquicultura' // contexto para melhor resposta
- *     })
- *   });
- *   const data = await response.json();
- *   return data.response;
- * };
  */
 const generateMockResponse = (userMessage: string): string => {
   const lowerMessage = userMessage.toLowerCase();

@@ -1,5 +1,6 @@
 import React from 'react';
 
+
 interface HeaderCardProps {
   siteId: string;
   lastUpdate: Date | null;
@@ -20,8 +21,8 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ siteId, lastUpdate }) =>
   return (
     <div className="bg-gradient-to-br from-cyan-500 via-cyan-600 to-teal-500 p-6 pb-8">
       <div className="mb-6">
-        <h1 className="text-white">Qualidade da Água</h1>
-        <p className="text-white/90 text-sm mt-1">Viveiro</p>
+        <h1 className="text-white">Monitor Viveiro</h1>
+        <p className="text-white/90 text-sm mt-1">Aquicultura</p>
       </div>
       
       <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">

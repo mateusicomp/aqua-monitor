@@ -5,9 +5,9 @@ import { IdealRangeBar } from './IdealRangeBar';
 import { 
   Droplets, 
   Thermometer, 
-  Beaker, 
-  Fish 
+  Beaker,  
 } from 'lucide-react';
+
 
 interface MetricCardProps {
   measurement: Measurement;
@@ -15,6 +15,11 @@ interface MetricCardProps {
 
 const IconComponent = ({ parameter }: { parameter: Measurement['parameter'] }) => {
   const config = PARAMETER_CONFIG[parameter];
+  
+  if (!config) {
+    return <Droplets size={28} color="#6B7280" strokeWidth={2} />;
+  }
+  
   const iconProps = {
     size: 28,
     color: config.color,
@@ -30,8 +35,6 @@ const IconComponent = ({ parameter }: { parameter: Measurement['parameter'] }) =
       return <Beaker {...iconProps} />;
     case 'tds':
       return <Droplets {...iconProps} />;
-    case 'od':
-      return <Fish {...iconProps} />;
     default:
       return <Droplets {...iconProps} />;
   }
@@ -39,6 +42,11 @@ const IconComponent = ({ parameter }: { parameter: Measurement['parameter'] }) =
 
 export const MetricCard: React.FC<MetricCardProps> = ({ measurement }) => {
   const config = PARAMETER_CONFIG[measurement.parameter];
+
+  if (!config) {
+    console.warn(`Parâmetro não configurado: ${measurement.parameter}`);
+    return null;
+  }
 
   return (
     <div 

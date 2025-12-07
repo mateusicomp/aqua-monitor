@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { TelemetryData, Measurement } from '../types/telemetry';
 import { PARAMETER_CONFIG } from '../utils/parameterConfig';
 import { IDEAL_RANGES } from '../utils/idealRanges';
+
 
 type Period = '24h' | '7d' | '30d' | 'custom';
 
@@ -87,9 +88,17 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-200">
-          <p className="text-xs text-gray-500">{payload[0].payload.time}</p>
-          <p className="font-semibold" style={{ color: config.color }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '8px 12px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          border: '1px solid #E5E7EB'
+        }}>
+          <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>
+            {payload[0].payload.time}
+          </p>
+          <p style={{ fontWeight: '600', color: config.color, margin: '4px 0 0 0' }}>
             {payload[0].value} {range.unit}
           </p>
         </div>
@@ -99,90 +108,146 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: '16px',
+      padding: '0 0 16px 0'
+    }}>
+      
       {/* Filtro de Período */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center gap-2 mb-3">
-          <Calendar className="w-5 h-5 text-gray-400" />
-          <h3 className="text-gray-700">Período</h3>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        padding: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: '1px solid #F3F4F6'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <Calendar style={{ width: '20px', height: '20px', color: '#9CA3AF' }} />
+          <h3 style={{ color: '#374151', margin: 0, fontSize: '16px', fontWeight: '600' }}>
+            Período
+          </h3>
         </div>
         
-        <div className="flex gap-2">
-          {periods.map(period => (
-            <button
-              key={period.value}
-              onClick={() => setSelectedPeriod(period.value)}
-              className={`
-                flex-1 px-4 py-2 rounded-xl transition-all
-                ${selectedPeriod === period.value
-                  ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }
-              `}
-            >
-              {period.label}
-            </button>
-          ))}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(3, 1fr)', 
+          gap: '8px' 
+        }}>
+          {periods.map(period => {
+            const isActive = selectedPeriod === period.value;
+            return (
+              <button
+                key={period.value}
+                onClick={() => setSelectedPeriod(period.value)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: isActive 
+                    ? 'linear-gradient(to right, #0d9488, #0891b2)'
+                    : '#F3F4F6',
+                  color: isActive ? 'white' : '#4B5563',
+                  boxShadow: isActive ? '0 4px 6px rgba(13, 148, 136, 0.3)' : 'none'
+                }}
+              >
+                {period.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Seletor de Parâmetro */}
-      <div className="grid grid-cols-2 gap-3">
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(2, 1fr)', 
+        gap: '12px' 
+      }}>
         {Object.entries(PARAMETER_CONFIG).map(([param, cfg]) => {
           const isSelected = selectedParameter === param;
           const paramRange = IDEAL_RANGES[param as Measurement['parameter']];
           
-          // Proteção: só renderiza se houver range configurado
           if (!paramRange) return null;
           
           return (
             <button
               key={param}
               onClick={() => setSelectedParameter(param as Measurement['parameter'])}
-              className={`
-                p-4 rounded-2xl transition-all border-2
-                ${isSelected
-                  ? 'border-current shadow-lg scale-105'
-                  : 'border-gray-200 hover:border-gray-300'
-                }
-              `}
               style={{
-                color: isSelected ? cfg.color : '#6B7280',
-                borderColor: isSelected ? cfg.color : undefined
+                padding: '16px',
+                borderRadius: '16px',
+                border: isSelected ? `2px solid ${cfg.color}` : '2px solid #E5E7EB',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: isSelected ? '0 10px 15px rgba(0,0,0,0.1)' : 'none',
+                transform: isSelected ? 'scale(1.05)' : 'scale(1)'
               }}
             >
-              <p className="text-sm mb-1">{cfg.label}</p>
-              <p className="text-xs opacity-70">{paramRange.unit}</p>
+              <p style={{ 
+                fontSize: '14px', 
+                fontWeight: '500',
+                color: isSelected ? cfg.color : '#6B7280',
+                margin: '0 0 4px 0'
+              }}>
+                {cfg.label}
+              </p>
+              <p style={{ 
+                fontSize: '12px', 
+                opacity: 0.7,
+                color: isSelected ? cfg.color : '#6B7280',
+                margin: 0
+              }}>
+                {paramRange.unit}
+              </p>
             </button>
           );
         })}
       </div>
 
       {/* Gráfico */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        padding: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: '1px solid #F3F4F6'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          marginBottom: '16px' 
+        }}>
           <div>
-            <h3 className="text-gray-700">{config.label}</h3>
-            <p className="text-xs text-gray-400">
+            <h3 style={{ color: '#374151', margin: 0, fontSize: '16px', fontWeight: '600' }}>
+              {config.label}
+            </h3>
+            <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '4px 0 0 0' }}>
               Últimas {selectedPeriod === '24h' ? '24 horas' : selectedPeriod === '7d' ? '7 dias' : '30 dias'}
             </p>
           </div>
           
-          <div className="flex items-center gap-2">
-            {trend === 'up' && <TrendingUp className="w-5 h-5 text-green-500" />}
-            {trend === 'down' && <TrendingDown className="w-5 h-5 text-red-500" />}
-            {trend === 'stable' && <Minus className="w-5 h-5 text-gray-400" />}
-            <span className={`text-sm ${
-              trend === 'up' ? 'text-green-600' : 
-              trend === 'down' ? 'text-red-600' : 
-              'text-gray-600'
-            }`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {trend === 'up' && <TrendingUp style={{ width: '20px', height: '20px', color: '#10B981' }} />}
+            {trend === 'down' && <TrendingDown style={{ width: '20px', height: '20px', color: '#EF4444' }} />}
+            {trend === 'stable' && <Minus style={{ width: '20px', height: '20px', color: '#9CA3AF' }} />}
+            <span style={{ 
+              fontSize: '14px',
+              color: trend === 'up' ? '#059669' : trend === 'down' ? '#DC2626' : '#4B5563'
+            }}>
               {trend === 'up' ? 'Crescente' : trend === 'down' ? 'Decrescente' : 'Estável'}
             </span>
           </div>
         </div>
 
-        <div className="h-48">
+        <div style={{ height: '192px', width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={historyData}>
               <XAxis 
@@ -208,23 +273,38 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <div className="grid grid-cols-3 gap-4 text-center">
+        <div style={{ 
+          marginTop: '16px', 
+          paddingTop: '16px', 
+          borderTop: '1px solid #F3F4F6' 
+        }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: '16px', 
+            textAlign: 'center' 
+          }}>
             <div>
-              <p className="text-xs text-gray-400 mb-1">Mínimo</p>
-              <p className="font-semibold text-blue-600">
+              <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 4px 0' }}>
+                Mínimo
+              </p>
+              <p style={{ margin: 0, fontWeight: '600', color: '#2563EB', fontSize: '16px' }}>
                 {Math.min(...historyData.map(d => d.value)).toFixed(2)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-1">Média</p>
-              <p className="font-semibold text-gray-700">
+              <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 4px 0' }}>
+                Média
+              </p>
+              <p style={{ margin: 0, fontWeight: '600', color: '#374151', fontSize: '16px' }}>
                 {(historyData.reduce((acc, d) => acc + d.value, 0) / historyData.length).toFixed(2)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-1">Máximo</p>
-              <p className="font-semibold text-orange-600">
+              <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '0 0 4px 0' }}>
+                Máximo
+              </p>
+              <p style={{ margin: 0, fontWeight: '600', color: '#EA580C', fontSize: '16px' }}>
                 {Math.max(...historyData.map(d => d.value)).toFixed(2)}
               </p>
             </div>
@@ -233,37 +313,82 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
       </div>
 
       {/* Leituras Recentes */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-gray-700">Leituras Recentes</h3>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        padding: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: '1px solid #F3F4F6'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          marginBottom: '12px' 
+        }}>
+          <h3 style={{ color: '#374151', margin: 0, fontSize: '16px', fontWeight: '600' }}>
+            Leituras Recentes
+          </h3>
           <button 
-            className="text-xs text-teal-600 hover:text-teal-700 flex items-center gap-1"
             onClick={() => alert('Funcionalidade de exportação em desenvolvimento')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              color: '#0d9488',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              transition: 'background 0.2s'
+            }}
           >
-            <Download className="w-4 h-4" />
+            <Download style={{ width: '16px', height: '16px' }} />
             Exportar
           </button>
         </div>
 
-        <div className="space-y-2 max-h-64 overflow-y-auto">
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '8px',
+          maxHeight: '256px',
+          overflowY: 'auto'
+        }}>
           {historyData.slice(-10).reverse().map((item, index) => {
             const isInRange = item.value >= range.min && item.value <= range.max;
             return (
               <div 
                 key={index}
-                className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  backgroundColor: '#F9FAFB',
+                  transition: 'background 0.2s'
+                }}
               >
                 <div>
-                  <p className="text-sm text-gray-700">{item.value} {range.unit}</p>
-                  <p className="text-xs text-gray-400">
+                  <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>
+                    {item.value} {range.unit}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '4px 0 0 0' }}>
                     {new Date(item.timestamp).toLocaleString('pt-BR')}
                   </p>
                 </div>
                 
-                <div className={`
-                  px-3 py-1 rounded-full text-xs
-                  ${isInRange ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}
-                `}>
+                <div style={{
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  backgroundColor: isInRange ? '#D1FAE5' : '#FEF3C7',
+                  color: isInRange ? '#047857' : '#92400E'
+                }}>
                   {isInRange ? 'Ideal' : 'Atenção'}
                 </div>
               </div>

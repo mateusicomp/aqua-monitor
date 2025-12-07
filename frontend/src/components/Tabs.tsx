@@ -1,5 +1,6 @@
 import React from 'react';
 
+
 interface TabsProps {
   activeTab: 'monitor' | 'historico';
   onTabChange: (tab: 'monitor' | 'historico') => void;
@@ -23,6 +24,7 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, onTabChange }) => {
           <div className="absolute bottom-2 left-0 right-0 h-1 bg-teal-600 rounded-t-lg" />
         )}
       </button>
+      
       
       <button
         onClick={() => onTabChange('historico')}
