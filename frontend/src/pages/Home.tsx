@@ -155,7 +155,10 @@ const Home: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-hidden">
-            <ChatbotView />
+            <ChatbotView 
+              deviceId={telemetryData?.device_id ?? null}
+              siteId={telemetryData?.site_id ?? null}
+            />
           </div>
         </div>
       </IonModal>

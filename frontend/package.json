@@ -24,6 +24,8 @@
     "@types/react-router-dom": "^5.3.3",
     "firebase": "^12.5.0",
     "ionicons": "^7.4.0",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.553.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",

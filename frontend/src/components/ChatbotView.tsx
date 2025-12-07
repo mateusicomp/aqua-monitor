@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
 
+const CHAT_API_URL = 'http://localhost:8000/chat';
 
 interface Message {
   id: string;
@@ -9,7 +10,12 @@ interface Message {
   timestamp: Date;
 }
 
-export const ChatbotView: React.FC = () => {
+interface ChatbotViewProps {
+  deviceId?: string | null;
+  siteId?: string | null;
+}
+
+export const ChatbotView: React.FC<ChatbotViewProps> = ({ deviceId, siteId }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -22,6 +28,13 @@ export const ChatbotView: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [sessionId] = useState<string>(() => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return (crypto as any).randomUUID();
+    }
+    return `session-${Date.now()}`;
+  });
 
   const suggestedQuestions = [
     'Qual a faixa ideal de pH para meu viveiro?',
@@ -60,21 +73,64 @@ export const ChatbotView: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Simula delay de resposta da LLM
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const response = await fetch(CHAT_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message: text.trim(),
+          device_id: deviceId ?? null,
+          site_id: siteId ?? null,
+        }),
+      });
 
-    // Mock de resposta - substituir por chamada real à API da LLM
-    const botResponse = generateMockResponse(text);
-    
-    const botMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      text: botResponse,
-      sender: 'bot',
-      timestamp: new Date()
-    };
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null as any);
+        const backendMessage =
+          (errorData as any)?.detail ||
+          (typeof (errorData as any)?.message === 'string'
+            ? (errorData as any).message
+            : null);
 
-    setMessages(prev => [...prev, botMessage]);
-    setIsTyping(false);
+        throw new Error(
+          backendMessage ||
+          'Não foi possível obter resposta do assistente no momento.'
+        );
+      }
+
+      const data = await response.json() as {
+        session_id: string;
+        answer: string;
+        intent: string;
+        data_used?: Record<string, unknown> | null;
+      };
+
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: data.answer,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem para o backend:', error);
+
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text:
+          'Tive um problema para acessar os dados agora. Confira sua conexão com a internet e tente novamente.',
+        sender: 'bot',
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -378,34 +434,4 @@ export const ChatbotView: React.FC = () => {
       `}</style>
     </div>
   );
-};
-
-/**
- * Mock de resposta da LLM - substituir por chamada real à API
- */
-const generateMockResponse = (userMessage: string): string => {
-  const lowerMessage = userMessage.toLowerCase();
-
-  if (lowerMessage.includes('ph')) {
-    return 'A faixa ideal de pH para criação de peixes é entre 6.5 e 8.5. Valores muito baixos (ácidos) ou muito altos (alcalinos) podem causar estresse nos peixes e afetar sua saúde. Recomendo monitorar diariamente e ajustar com produtos específicos se necessário.';
-  }
-
-  if (lowerMessage.includes('turbidez')) {
-    return 'A turbidez mede a quantidade de partículas suspensas na água. Valores ideais ficam entre 0-10 NTU. Turbidez alta pode indicar excesso de matéria orgânica, algas ou sedimentos. Isso reduz a entrada de luz e pode diminuir o oxigênio dissolvido. Considere melhorar a filtragem ou reduzir a alimentação.';
-  }
-
-  if (lowerMessage.includes('temperatura')) {
-    return 'A temperatura ideal varia conforme a espécie, mas geralmente fica entre 20°C e 30°C. Temperaturas fora dessa faixa podem causar estresse, reduzir o apetite e comprometer o sistema imunológico dos peixes. Use aeradores ou sombreamento para controlar a temperatura.';
-  }
-
-  if (lowerMessage.includes('tds') || lowerMessage.includes('condutividade')) {
-    return 'O TDS (Total de Sólidos Dissolvidos) mede a condutividade elétrica da água, indicando a quantidade de minerais dissolvidos. Valores entre 0-500 ppm são ideais para a maioria das espécies. Muito baixo pode indicar falta de nutrientes, muito alto pode ser tóxico.';
-  }
-
-  if (lowerMessage.includes('melhorar') || lowerMessage.includes('qualidade')) {
-    return 'Para melhorar a qualidade da água:\n\n1. Mantenha aeração adequada\n2. Evite excesso de alimentação\n3. Realize trocas parciais regulares\n4. Monitore parâmetros diariamente\n5. Use probióticos quando necessário\n6. Mantenha densidade adequada de peixes\n\nQual parâmetro específico está fora do ideal?';
-  }
-
-  // Resposta padrão
-  return 'Entendo sua dúvida. Posso ajudar com informações sobre pH, temperatura, turbidez, TDS e outros parâmetros de qualidade da água. Você pode fazer perguntas mais específicas sobre algum desses temas?';
 };

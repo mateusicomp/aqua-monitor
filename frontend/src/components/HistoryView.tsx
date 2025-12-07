@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { TelemetryData, Measurement } from '../types/telemetry';
 import { PARAMETER_CONFIG } from '../utils/parameterConfig';
 import { IDEAL_RANGES } from '../utils/idealRanges';
-
+import { subscribeToTelemetryHistory } from '../services/firestore';
+import { exportTelemetryPdf } from '../services/exportTelemetryPdf';
 
 type Period = '24h' | '7d' | '30d' | 'custom';
 
@@ -12,49 +13,20 @@ interface HistoryViewProps {
   currentData: TelemetryData | null;
 }
 
-// Mock de dados históricos - substituir por consulta real ao Firestore
-const generateMockHistory = (parameter: string, hours: number = 24): any[] => {
-  const now = Date.now();
-  const data = [];
-  const interval = (hours * 60 * 60 * 1000) / 20; // 20 pontos
-  
-  for (let i = 20; i >= 0; i--) {
-    const timestamp = now - (i * interval);
-    let value;
-    
-    // Gera valores baseados no parâmetro
-    switch (parameter) {
-      case 'pH':
-        value = 7.0 + (Math.random() - 0.5) * 1.5;
-        break;
-      case 'temperature':
-        value = 25 + (Math.random() - 0.5) * 5;
-        break;
-      case 'turbidity':
-        value = 5 + (Math.random() - 0.5) * 4;
-        break;
-      case 'tds':
-        value = 250 + (Math.random() - 0.5) * 150;
-        break;
-      default:
-        value = 0;
-    }
-    
-    data.push({
-      timestamp,
-      time: new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      value: parseFloat(value.toFixed(2))
-    });
-  }
-  
-  return data;
+type HistoryPoint = {
+  timestamp: number;
+  time: string;
+  value: number;
 };
 
-const getTrend = (data: any[]): 'up' | 'down' | 'stable' => {
+const getTrend = (data: { value: number }[]): 'up' | 'down' | 'stable' => {
   if (data.length < 2) return 'stable';
   
   const first = data[0].value;
   const last = data[data.length - 1].value;
+
+  if (first === 0) return 'stable';
+
   const diff = ((last - first) / first) * 100;
   
   if (Math.abs(diff) < 5) return 'stable';
@@ -64,6 +36,11 @@ const getTrend = (data: any[]): 'up' | 'down' | 'stable' => {
 export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('24h');
   const [selectedParameter, setSelectedParameter] = useState<Measurement['parameter']>('pH');
+
+  // Histórico bruto vindo do Firestore (docs)
+  const [rawHistory, setRawHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const periods = [
     { value: '24h' as Period, label: '24h' },
@@ -80,10 +57,99 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
     }
   };
 
-  const historyData = generateMockHistory(selectedParameter, getHoursFromPeriod(selectedPeriod));
-  const trend = getTrend(historyData);
+  // Assina histórico do Firestore assim que tiver site_id/device_id disponíveis
+  useEffect(() => {
+    if (!currentData?.site_id || !currentData?.device_id) {
+      setRawHistory([]);
+      setLoadingHistory(false);
+      return;
+    }
+
+    setLoadingHistory(true);
+    setHistoryError(null);
+
+    const unsubscribe = subscribeToTelemetryHistory(
+      (docs) => {
+        setRawHistory(docs);
+        setLoadingHistory(false);
+      },
+      (error) => {
+        console.error('Erro ao buscar histórico:', error);
+        setHistoryError('Não foi possível carregar o histórico no momento.');
+        setLoadingHistory(false);
+      },
+      {
+        siteId: currentData.site_id,
+        deviceId: currentData.device_id,
+        maxPoints: 200
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentData?.site_id, currentData?.device_id]);
+
+  // Converte documentos brutos em pontos para o gráfico/lista, filtrando por período e parâmetro
+  const historyData: HistoryPoint[] = useMemo(() => {
+    if (!rawHistory.length) return [];
+
+    const now = Date.now();
+    const hours = getHoursFromPeriod(selectedPeriod);
+    const windowMs = hours * 60 * 60 * 1000;
+
+    return rawHistory
+      .map((doc) => {
+        const sentAtRaw = (doc as any).sent_at;
+        const sentAt: Date =
+          sentAtRaw?.toDate ? sentAtRaw.toDate() : new Date(sentAtRaw);
+
+        const measurements = (doc as any).measurements as Measurement[] | undefined;
+        const measurement = measurements?.find(
+          (m) => m.parameter === selectedParameter
+        );
+
+        if (!measurement) return null;
+
+        const ts = sentAt.getTime();
+        if (now - ts > windowMs) return null;
+
+        return {
+          timestamp: ts,
+          time: sentAt.toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          value: measurement.value
+        };
+      })
+      .filter((p): p is HistoryPoint => p !== null)
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [rawHistory, selectedParameter, selectedPeriod]);
+
   const config = PARAMETER_CONFIG[selectedParameter];
   const range = IDEAL_RANGES[selectedParameter];
+  const trend = historyData.length ? getTrend(historyData) : 'stable';
+
+  const minValue =
+    historyData.length > 0
+      ? Math.min(...historyData.map((d) => d.value))
+      : null;
+
+  const maxValue =
+    historyData.length > 0
+      ? Math.max(...historyData.map((d) => d.value))
+      : null;
+
+  const avgValue =
+    historyData.length > 0
+      ? historyData.reduce((acc, d) => acc + d.value, 0) / historyData.length
+      : null;
+
+  const periodLabel =
+    selectedPeriod === '24h'
+      ? 'Últimas 24 horas'
+      : selectedPeriod === '7d'
+      ? 'Últimos 7 dias'
+      : 'Últimos 30 dias';
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -248,6 +314,24 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
         </div>
 
         <div style={{ height: '192px', width: '100%' }}>
+          {historyError && (
+            <p style={{ fontSize: '12px', color: '#DC2626', textAlign: 'center', margin: 0 }}>
+              {historyError}
+            </p>
+          )}
+
+          {!historyError && loadingHistory && (
+            <p style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center', margin: 0 }}>
+              Carregando histórico...
+            </p>
+          )}
+
+          {!historyError && !loadingHistory && historyData.length === 0 && (
+            <p style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center', margin: 0 }}>
+              Nenhum dado disponível para o período selecionado.
+            </p>
+          )}
+
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={historyData}>
               <XAxis 
@@ -289,7 +373,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
                 Mínimo
               </p>
               <p style={{ margin: 0, fontWeight: '600', color: '#2563EB', fontSize: '16px' }}>
-                {Math.min(...historyData.map(d => d.value)).toFixed(2)}
+                {minValue !== null ? minValue.toFixed(2) : '--'}
               </p>
             </div>
             <div>
@@ -297,7 +381,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
                 Média
               </p>
               <p style={{ margin: 0, fontWeight: '600', color: '#374151', fontSize: '16px' }}>
-                {(historyData.reduce((acc, d) => acc + d.value, 0) / historyData.length).toFixed(2)}
+                {avgValue !== null ? avgValue.toFixed(2) : '--'}
               </p>
             </div>
             <div>
@@ -305,7 +389,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
                 Máximo
               </p>
               <p style={{ margin: 0, fontWeight: '600', color: '#EA580C', fontSize: '16px' }}>
-                {Math.max(...historyData.map(d => d.value)).toFixed(2)}
+                {maxValue !== null ? maxValue.toFixed(2) : '--'}
               </p>
             </div>
           </div>
@@ -330,7 +414,21 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
             Leituras Recentes
           </h3>
           <button 
-            onClick={() => alert('Funcionalidade de exportação em desenvolvimento')}
+            onClick={() =>
+              exportTelemetryPdf(historyData, {
+                siteId: currentData?.site_id ?? undefined,
+                deviceId: currentData?.device_id ?? undefined,
+                parameterKey: selectedParameter,
+                parameterLabel: config.label,
+                unit: range.unit,
+                periodLabel,
+                min: minValue,
+                max: maxValue,
+                avg: avgValue,
+                idealMin: range.min,
+                idealMax: range.max
+              })
+            }
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -374,7 +472,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ currentData }) => {
               >
                 <div>
                   <p style={{ fontSize: '14px', color: '#374151', margin: 0 }}>
-                    {item.value} {range.unit}
+                    {item.value.toFixed(2)} {range.unit}
                   </p>
                   <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '4px 0 0 0' }}>
                     {new Date(item.timestamp).toLocaleString('pt-BR')}

@@ -6,7 +6,9 @@ import {
   orderBy, 
   limit, 
   onSnapshot,
-  DocumentData 
+  DocumentData,
+  where,
+  QueryConstraint
 } from 'firebase/firestore';
 
 
@@ -21,8 +23,11 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+export const db = getFirestore(app);
 
+/**
+ * Última telemetria (já funcionando na Home)
+ */
 export const subscribeToLatestTelemetry = (
   callback: (data: DocumentData | null) => void,
   onError: (error: Error) => void
@@ -45,6 +50,49 @@ export const subscribeToLatestTelemetry = (
       } else {
         callback(null);
       }
+    },
+    onError
+  );
+};
+
+/**
+ * Histórico de telemetria para um site/device
+ * - Busca últimos N documentos (maxPoints)
+ * - Filtragem por período (24h, 7d, 30d) é feita no frontend
+ */
+export const subscribeToTelemetryHistory = (
+  callback: (data: DocumentData[]) => void,
+  onError: (error: Error) => void,
+  options?: {
+    deviceId?: string | null;
+    siteId?: string | null;
+    maxPoints?: number;
+  }
+) => {
+  const constraints: QueryConstraint[] = [];
+
+  if (options?.siteId) {
+    constraints.push(where('site_id', '==', options.siteId));
+  }
+
+  if (options?.deviceId) {
+    constraints.push(where('device_id', '==', options.deviceId));
+  }
+
+  // Ordena do mais recente para o mais antigo
+  constraints.push(orderBy('sent_at', 'desc'));
+  constraints.push(limit(options?.maxPoints ?? 200));
+
+  const q = query(collection(db, 'telemetry'), ...constraints);
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const docs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      callback(docs);
     },
     onError
   );
