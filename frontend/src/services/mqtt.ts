@@ -1,98 +1,102 @@
-/**
- * Serviço MQTT para comunicação com ESP32
- * 
- * Este serviço permite enviar comandos para o dispositivo ESP32
- * para disparar coleta de dados dos sensores de qualidade da água.
- * 
- * IMPORTANTE: Este é um stub/mock. Para implementação real:
- * 1. Instale o cliente MQTT: npm install mqtt
- * 2. Configure o broker MQTT (ex: HiveMQ, Mosquitto, AWS IoT)
- * 3. Implemente a conexão real substituindo as funções abaixo
- */
+import mqtt, { MqttClient, IClientOptions } from "mqtt";
 
-export interface MqttConfig {
-  brokerUrl: string;
-  username?: string;
-  password?: string;
-  clientId: string;
-}
 
-export interface MeasureCommand {
-  device_id: string;
-  command: 'measure';
-  timestamp: string;
-}
+export type MeasureStatus = "idle" | "connecting" | "measuring" | "success" | "error";
 
-export type MeasureStatus = 'idle' | 'connecting' | 'measuring' | 'success' | 'error';
+const BROKER_URL = import.meta.env.VITE_BROKER_URL;
 
-// Mock de configuração - substituir com valores reais
-const MOCK_CONFIG: MqttConfig = {
-  brokerUrl: 'wss://broker.hivemq.com:8884/mqtt', // Exemplo de broker público
-  clientId: `web-client-${Math.random().toString(16).substr(2, 8)}`
+// Se precisar de auth (HiveMQ Cloud, etc), preenche aqui
+const MQTT_USERNAME = "";
+const MQTT_PASSWORD = "";
+
+const options: IClientOptions = {
+  connectTimeout: 4000,
+  clientId: "aquamonitor_web_" + Math.random().toString(16).substr(2, 8),
+  username: MQTT_USERNAME || undefined,
+  password: MQTT_PASSWORD || undefined,
+  reconnectPeriod: 4000, // tenta reconectar automaticamente a cada 4s
+  keepalive: 30,
 };
 
-/**
- * Simula o envio de comando MQTT para o dispositivo
- * 
- * IMPLEMENTAÇÃO REAL:
- * 
- * import mqtt from 'mqtt';
- * 
- * export const sendMeasureCommand = async (deviceId: string): Promise<void> => {
- *   const client = mqtt.connect(MQTT_CONFIG.brokerUrl, {
- *     username: MQTT_CONFIG.username,
- *     password: MQTT_CONFIG.password,
- *     clientId: MQTT_CONFIG.clientId
- *   });
- * 
- *   return new Promise((resolve, reject) => {
- *     client.on('connect', () => {
- *       const topic = `devices/${deviceId}/commands`;
- *       const payload: MeasureCommand = {
- *         device_id: deviceId,
- *         command: 'measure',
- *         timestamp: new Date().toISOString()
- *       };
- *       
- *       client.publish(topic, JSON.stringify(payload), { qos: 1 }, (err) => {
- *         client.end();
- *         if (err) reject(err);
- *         else resolve();
- *       });
- *     });
- * 
- *     client.on('error', (err) => {
- *       client.end();
- *       reject(err);
- *     });
- *   });
- * };
- */
+let client: MqttClient | null = null;
+let connectingPromise: Promise<MqttClient> | null = null;
 
-export const sendMeasureCommand = async (deviceId: string): Promise<void> => {
-  // Mock: simula delay de rede
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Mock: simula 90% de sucesso
-  if (Math.random() > 0.1) {
-    console.log(`[MQTT Mock] Comando enviado para ${deviceId}:`, {
-      command: 'measure',
-      timestamp: new Date().toISOString(),
-      topic: `devices/${deviceId}/commands`
-    });
-    return Promise.resolve();
-  } else {
-    throw new Error('Falha ao conectar com o dispositivo');
+async function getMqttClient(): Promise<MqttClient> {
+  // já temos um cliente conectado?
+  if (client && client.connected) {
+    return client;
   }
+
+  if (connectingPromise) {
+    return connectingPromise;
+  }
+
+  connectingPromise = new Promise<MqttClient>((resolve, reject) => {
+    console.log("[MQTT] Conectando em:", BROKER_URL);
+    const c = mqtt.connect(BROKER_URL, options);
+    client = c;
+
+    const timeoutId = setTimeout(() => {
+      console.error("[MQTT] Timeout ao conectar no broker");
+      try {
+        c.end(true);
+      } catch {}
+      connectingPromise = null;
+      reject(new Error("Timeout ao conectar ao broker MQTT"));
+    }, 7000);
+
+    c.on("connect", () => {
+      clearTimeout(timeoutId);
+      console.log("[MQTT] Conectado ao broker");
+      connectingPromise = null;
+      resolve(c);
+    });
+
+    c.on("error", (err) => {
+      clearTimeout(timeoutId);
+      console.error("[MQTT] Erro na conexão:", err);
+      try {
+        c.end(true);
+      } catch {}
+      connectingPromise = null;
+      reject(err);
+    });
+  });
+
+  return connectingPromise;
+}
+
+// Envia comando de medida para o ESP32
+export const sendMeasureCommand = async (deviceId: string): Promise<void> => {
+  const c = await getMqttClient();
+
+  const topic = `aquamonitor/${deviceId}/command/measure`;
+  const payload = JSON.stringify({
+    deviceId,
+    action: "measure",
+    source: "web",
+    ts: new Date().toISOString(),
+  });
+
+  return new Promise<void>((resolve, reject) => {
+    c.publish(topic, payload, { qos: 1 }, (err) => {
+      if (err) {
+        console.error("[MQTT] Erro ao publicar comando:", err);
+        reject(new Error("Falha ao enviar comando MQTT"));
+      } else {
+        console.log("[MQTT] Comando publicado em", topic, "=>", payload);
+        resolve();
+      }
+    });
+  });
 };
 
-/**
- * Verifica se o dispositivo está online
- * 
- * IMPLEMENTAÇÃO REAL: verificar last will/testament ou heartbeat do MQTT
- */
-export const checkDeviceStatus = async (deviceId: string): Promise<boolean> => {
-  // Mock: sempre retorna online
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return true;
+// Por enquanto, só checa se estamos conectados ao broker
+export const checkDeviceStatus = async (_deviceId: string): Promise<boolean> => {
+  try {
+    const c = await getMqttClient();
+    return c.connected;
+  } catch {
+    return false;
+  }
 };

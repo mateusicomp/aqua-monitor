@@ -4,17 +4,22 @@
 #include <time.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <PubSubClient.h>
+
 
 // ===================== CONFIGURAÇÕES DO PROJETO =====================
 // Wi-Fi
-const char* WIFI_SSID     = "eng.mateus";
-const char* WIFI_PASSWORD = "casamelo09";
+const char* WIFI_SSID     = "WiFi-LMA";
+const char* WIFI_PASSWORD = "@ufam.lma";
 
 // Firestore (REST)
 const char* PROJECT_ID = "monitor-viveiro";
 const char* API_KEY    = "AIzaSyB4nDY7o1yqFgwZ_pJSB0WT8attVFpnbXU";
 // Coleção onde os documentos serão criados
 const char* COLLECTION = "telemetry";
+
+// =============== PINOS ===============
+const int TRIGGER_IN_PIN = 27;      // recebe 3.3V via comando MQTT pelo pino 26 ou da chave manual 
 
 // Dispositivo/local (entra no JSON)
 const char* DEVICE_ID  = "esp32-agua-01";
@@ -28,9 +33,6 @@ const int DS18B20_PIN = 4;  // DATA do DS18B20 (Temperatura)
 const int PH_PIN        = 34;  // PO do PH4502C
 const int TURBIDITY_PIN = 35;  // A0 do SEN0189
 const int TDS_PIN       = 32;  // A0 do Gravity TDS
-
-// Pino de gatilho (3.3 V => envia telemetria)
-const int TRIGGER_PIN = 27; 
 
 // NTP/horário (UTC)
 const char* NTP_SERVER = "pool.ntp.org";
@@ -48,22 +50,24 @@ bool lastTriggerState = false;
 unsigned long lastSendMs = 0;
 
 // ===================== CALIBRAÇÃO E CONSTANTES =====================
-
 // Conversão ADC -> tensão (ESP32, resolução 12 bits, 0–3.3V)
 const float ADC_REF_VOLTAGE = 3.3f;
 const int   ADC_MAX         = 4095;
 
 // ---- pH (PH4502C) ----
-// Você deve medir a tensão em tampão pH 7 e pH 4 e ajustar estes valores.
-float PH7_VOLTAGE = 2.50f;  // exemplo inicial, ajuste depois medindo em pH 7
-float PH4_VOLTAGE = 3.00f;  // exemplo inicial, ajuste depois medindo em pH 4
+// Deve-se medir a tensão em tampão pH 7 e pH 4 e ajustar estes valores.
+float PH7_VOLTAGE = 2.50f;  
+float PH4_VOLTAGE = 3.00f; 
 
 // ---- Turbidez (SEN0189) ----
-// Relacionamento aproximado, ajuste conforme sua calibração.
-// Aqui assumimos: água limpa ~2.5V, água muito turva ~3.3V.
-const float TURBIDITY_CLEAR_V = 2.5f;
-const float TURBIDITY_MAX_V   = 3.3f;
-const float TURBIDITY_MAX_NTU = 3000.0f;  // faixa de interesse (ajuste se quiser)
+// Relacionamento aproximado, deve-se ajustar conforme a calibração.
+const float TURB_V_CLEAR = 3.50f;   // água limpa
+const float TURB_V_MUDDY = 1.50f;   // água bem turva
+const float TURB_V_DRY   = 2.75f;   // sensor no ar (descartar leitura)
+
+// NTU desejado
+const float TURB_NTU_MIN = 5.0f;
+const float TURB_NTU_MAX = 100.0f;
 
 // ===================== TIPOS AUXILIARES =====================
 struct TelemetryData {
@@ -82,6 +86,19 @@ struct TelemetryData {
   int   tdsAdc;
   float tdsVoltage;
 };
+
+// ===================== MQTT =====================
+
+// Cliente TCP para MQTT (porta 1883)
+WiFiClient mqttWifiClient;
+PubSubClient mqttClient(mqttWifiClient);
+
+const char* MQTT_BROKER    = "broker.hivemq.com";
+const uint16_t MQTT_PORT   = 1883;
+const char* MQTT_CLIENT_ID = "esp32-agua-01"; // pode ser o próprio DEVICE_ID
+
+// Tópico de comando (deve bater com a definição no frontend)
+String mqttCmdTopic = String("aquamonitor/") + DEVICE_ID + "/command/measure";
 
 // ===================== AUXILIARES =====================
 static String twoDigits(int v) { return (v < 10) ? "0" + String(v) : String(v); }
@@ -135,23 +152,33 @@ float voltageToPH(float voltage, float tempC) {
   float slope = (7.0f - 4.0f) / (PH7_VOLTAGE - PH4_VOLTAGE);
   float ph = 7.0f + slope * (voltage - PH7_VOLTAGE);
 
-  // Se quiser uma compensação muito grosseira por temperatura,
-  // pode ajustar aqui depois. Por enquanto, mantemos simples.
-  (void)tempC; // evita warning
+  (void)tempC; // evita warning, compensação de temperatura pode ser adicionada depois
 
   return ph;
 }
 
-// Converte tensão da turbidez em NTU (modelo simplificado)
-float voltageToTurbidityNTU(float voltage) {
-  // Garante que o valor esteja em faixa
-  if (voltage < TURBIDITY_CLEAR_V) voltage = TURBIDITY_CLEAR_V;
-  if (voltage > TURBIDITY_MAX_V)   voltage = TURBIDITY_MAX_V;
+// Converte tensão para NTU (5 a 100)
+float voltageToTurbidityNTU(float V) {
+  // 1. Detecta sensor fora da água
+  if (V > TURB_V_MUDDY && V < TURB_V_CLEAR) {
+    // ok, está na água
+  } else if (V > TURB_V_CLEAR) {
+    // tensão acima do máximo possível em água → fora da água
+    return 0.0f;  // ou -1.0f se quiser sinalizar "sem água"
+  }
 
-  float ntu = mapFloat(voltage,
-                       TURBIDITY_CLEAR_V, TURBIDITY_MAX_V,
-                       0.0f, TURBIDITY_MAX_NTU);
-  if (ntu < 0.0f) ntu = 0.0f;
+  // 2. Limita valores dentro do intervalo calibrado
+  if (V > TURB_V_CLEAR) V = TURB_V_CLEAR;
+  if (V < TURB_V_MUDDY) V = TURB_V_MUDDY;
+
+  // 3. Fração de turbidez (0 = limpa, 1 = muito turva)
+  float fraction = (TURB_V_CLEAR - V) / (TURB_V_CLEAR - TURB_V_MUDDY);
+  if (fraction < 0.0f) fraction = 0.0f;
+  if (fraction > 1.0f) fraction = 1.0f;
+
+  // 4. Converte para NTU
+  float ntu = TURB_NTU_MIN + fraction * (TURB_NTU_MAX - TURB_NTU_MIN);
+
   return ntu;
 }
 
@@ -188,6 +215,7 @@ TelemetryData readTelemetry() {
   // Turbidez
   d.turbAdc      = readAdcAveraged(TURBIDITY_PIN, 30, 10);
   d.turbVoltage  = adcToVoltage(d.turbAdc);
+  Serial.printf("[TURBIDEZ] ADC=%d  V=%.3f\n", d.turbAdc, d.turbVoltage);
   d.turbidityNTU = voltageToTurbidityNTU(d.turbVoltage);
 
   // TDS / Condutividade
@@ -286,7 +314,6 @@ String buildFirestorePayload(const TelemetryData &data) {
   return payload;
 }
 
-
 // Envia ao Firestore (coleção COLLECTION) usando HTTPS
 bool sendToFirestore() {
   TelemetryData data = readTelemetry();
@@ -332,9 +359,9 @@ bool sendToFirestore() {
   Serial.printf("POST %s -> HTTP %d\n", url.c_str(), code);
 
   String resp = http.getString();
-  Serial.println("===== RESPOSTA FIRESTORE =====");
-  Serial.println(resp);
-  Serial.println("================================");
+  //Serial.println("===== RESPOSTA FIRESTORE =====");
+  //Serial.println(resp);
+  //Serial.println("================================");
 
   if (code <= 0) {
     Serial.printf("[HTTP] Erro POST: %s\n", http.errorToString(code).c_str());
@@ -343,7 +370,6 @@ bool sendToFirestore() {
   http.end();
   return (code >= 200 && code < 300);
 }
-
 
 // ===================== SETUP/LOOP =====================
 void connectWiFi() {
@@ -378,11 +404,62 @@ void syncTime() {
   Serial.println("Data/hora (UTC): " + getISOTimeUTC());
 }
 
+// ===================== MQTT (setup/callback) =====================
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String t = String(topic);
+  Serial.print("[MQTT] Mensagem recebida em: ");
+  Serial.println(t);
+
+  Serial.print("[MQTT] Payload: ");
+  for (unsigned int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+  if (t == mqttCmdTopic) {
+    Serial.println("[MQTT] Comando de medida recebido! Enviando telemetria para Firestore...");
+
+    bool ok = sendToFirestore();
+    Serial.println(ok ? "[MQTT] Medida enviada com sucesso" : "[MQTT] Falha no envio");
+  }
+}
+
+void setupMqtt() {
+  mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+  mqttClient.setCallback(mqttCallback);
+}
+
+void ensureMqttConnected() {
+  if (mqttClient.connected()) return;
+
+  Serial.print("[MQTT] Conectando ao broker ");
+  Serial.print(MQTT_BROKER);
+  Serial.print(":");
+  Serial.print(MQTT_PORT);
+  Serial.println(" ...");
+
+  if (mqttClient.connect(MQTT_CLIENT_ID)) {
+    Serial.println("[MQTT] Conectado ao broker MQTT!");
+
+    // Assina o tópico de comando
+    mqttClient.subscribe(mqttCmdTopic.c_str(), 1);
+    Serial.print("[MQTT] Assinado tópico: ");
+    Serial.println(mqttCmdTopic);
+  } else {
+    Serial.print("[MQTT] Falha ao conectar, rc=");
+    Serial.println(mqttClient.state());
+  }
+}
+
+// ===================== SETUP / LOOP =====================
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  pinMode(TRIGGER_PIN, INPUT_PULLDOWN);
+  // Pino de gatilho manual
+  pinMode(TRIGGER_IN_PIN, INPUT_PULLDOWN);
 
   // ADC config
   analogReadResolution(12);
@@ -393,17 +470,29 @@ void setup() {
   connectWiFi();
   syncTime();
 
-  Serial.println("Pronto. Aplique 3.3 V ao pino de gatilho (GPIO27) para enviar telemetria.");
+  // MQTT
+  setupMqtt();
+  ensureMqttConnected();
+
+  Serial.println("Pronto.");
+  Serial.println(" - Aplique 3.3 V em GPIO27 (TRIGGER_IN_PIN) para envio manual.");
+  Serial.println(" - Ou envie comando MQTT em aquamonitor/esp32-agua-01/command/measure");
 }
 
 void loop() {
-  bool triggerState = digitalRead(TRIGGER_PIN) == HIGH;
+  // 1) Mantém MQTT conectado e processa mensagens
+  ensureMqttConnected();
+  mqttClient.loop();
+
+  // 2) Continua aceitando gatilho manual pelo pino 27
+  bool triggerState = digitalRead(TRIGGER_IN_PIN) == HIGH;
 
   // Borda de subida + antirrepique simples (1 s)
   if (triggerState && !lastTriggerState && (millis() - lastSendMs > 1000)) {
-    Serial.println("\nGatilho acionado! Lendo sensores e enviando telemetria...");
+    Serial.println("\n[GATILHO MANUAL] Lendo sensores e enviando telemetria...");
     bool ok = sendToFirestore();
-    Serial.println(ok ? "Envio concluído.\n" : "Falha no envio.\n");
+    Serial.println(ok ? "[GATILHO MANUAL] Envio concluído.\n"
+                      : "[GATILHO MANUAL] Falha no envio.\n");
     lastSendMs = millis();
   }
 

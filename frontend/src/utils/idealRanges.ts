@@ -3,8 +3,8 @@ import { RangeMap, Measurement } from '../types/telemetry';
 export const IDEAL_RANGES: RangeMap = {
   pH: { min: 6.5, max: 8.5, unit: 'pH' },
   temperature: { min: 20, max: 30, unit: '°C' },
-  turbidity: { min: 0, max: 10, unit: 'NTU' },
-  tds: { min: 0, max: 500, unit: 'ppm' }
+  turbidity: { min: 5, max: 100, unit: 'NTU' },
+  tds: { min: 10, max: 300, unit: 'ppm' }
 };
 
 export const getIdealRange = (parameter: Measurement['parameter']): string => {
