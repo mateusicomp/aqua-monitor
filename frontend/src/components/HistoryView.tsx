@@ -7,6 +7,7 @@ import { IDEAL_RANGES } from '../utils/idealRanges';
 import { subscribeToTelemetryHistory } from '../services/firestore';
 import { exportTelemetryPdf } from '../services/exportTelemetryPdf';
 
+
 type Period = '24h' | '7d' | '30d' | 'custom';
 
 interface HistoryViewProps {

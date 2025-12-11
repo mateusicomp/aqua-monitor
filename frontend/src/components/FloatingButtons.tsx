@@ -158,7 +158,7 @@ return (
       <div
         style={{
           position: 'fixed',
-          bottom: '115px',
+          bottom: '140px',
           right: '24px',
           zIndex: 90,
           display: 'flex',
