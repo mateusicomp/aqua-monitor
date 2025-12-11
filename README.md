@@ -118,7 +118,7 @@ ionic build --prod
 
 Imagem do aplicativo
 
-![Screenshot do App](./src/docs/Home-inicial.png)
+![Screenshot do App](images/Home-inicial.png)
 
 ---
 
