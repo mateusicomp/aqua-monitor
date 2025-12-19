@@ -3,6 +3,9 @@
 # dependencies
 /frontend/node_modules/
 /frontend/.env
+/frontend/dist/
+/frontend/android/.jdk/
+/frontend/android/.gradle/
 /.pnp
 .pnp.js
 
