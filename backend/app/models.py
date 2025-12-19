@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ChatRequest(BaseModel):
@@ -26,18 +26,46 @@ class WaterParameter(str, Enum):
 
 
 class QueryIntentType(str, Enum):
-    LATEST_STATUS = "latest_status"
-    PERIOD_STATUS = "period_status"
-    TREND = "trend"
     GENERAL_HELP = "general_help"
+
+    LATEST_STATUS = "latest_status"      # última leitura (geral ou de um parâmetro)
+    PERIOD_STATUS = "period_status"      # resumo no período (se não especificar estatística, vira "summary")
+
+    AVG_VALUE = "avg_value"              # média no período
+    MAX_VALUE = "max_value"              # máximo no período
+    MIN_VALUE = "min_value"              # mínimo no período
+
+    TREND = "trend"                      # tendência no período/últimos N dias
+    IDEAL_CHECK = "ideal_check"          # está dentro da faixa ideal?
+
+    COMPARE_PERIODS = "compare_periods"  # comparar dois períodos (ex: hoje vs ontem)
 
 
 class QueryIntent(BaseModel):
     intent: QueryIntentType
+
     parameter: Optional[WaterParameter] = None
+
+    # período opcional
     start: Optional[datetime] = None
     end: Optional[datetime] = None
-    aggregation: Optional[str] = None
+
+    # quando o usuário fala "últimos X dias"
+    days: Optional[int] = Field(default=None, ge=1, le=60)
+
+    # se pedir algo tipo "ideal", "faixa recomendada"
+    include_ideal: Optional[bool] = False
+
+    @model_validator(mode="after")
+    def cleanup(self):
+        # Se for help geral, não pode inventar datas
+        if self.intent == QueryIntentType.GENERAL_HELP:
+            self.start = None
+            self.end = None
+            self.days = None
+            self.parameter = None
+            self.include_ideal = False
+        return self
 
 
 class Measurement(BaseModel):

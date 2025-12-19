@@ -37,9 +37,7 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({ deviceId, siteId }) =>
   });
 
   const suggestedQuestions = [
-    'Qual a faixa ideal de pH para meu viveiro?',
-    'Como melhorar a qualidade da água?',
-    'O que significa turbidez alta?'
+    'Qual a minha última leitura de Temperatura?',
   ];
 
   const scrollToBottom = () => {
@@ -188,7 +186,7 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({ deviceId, siteId }) =>
           flexShrink: 0
         }}>
           <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '12px', marginTop: 0 }}>
-            Sugestões de perguntas:
+            Sugestão de pergunta:
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {suggestedQuestions.map((question, index) => (

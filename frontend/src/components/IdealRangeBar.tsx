@@ -36,9 +36,9 @@ export const IdealRangeBar: React.FC<IdealRangeBarProps> = ({ parameter, value }
       
       {/* Labels de range */}
       <div className="flex justify-between items-center mt-2">
-        <span className="text-gray-400 text-xs">{range.min} {range.unit}</span>
-        <span className="text-emerald-600 text-xs">Ideal: {range.min}–{range.max}</span>
-        <span className="text-gray-400 text-xs">{range.max} {range.unit}</span>
+        <span className="text-gray-500 text-base">{range.min} {range.unit}</span>
+        <span className="text-emerald-600 text-base">Ideal: {range.min}–{range.max}</span>
+        <span className="text-gray-500 text-base">{range.max} {range.unit}</span>
       </div>
     </div>
   );

@@ -9,8 +9,8 @@
 
 // ===================== CONFIGURAÇÕES DO PROJETO =====================
 // Wi-Fi
-const char* WIFI_SSID     = "WiFi-LMA";
-const char* WIFI_PASSWORD = "@ufam.lma";
+const char* WIFI_SSID     = "WiFI-LAB3";
+const char* WIFI_PASSWORD = "@ufam.lab3";
 
 // Firestore (REST)
 const char* PROJECT_ID = "monitor-viveiro";
@@ -27,7 +27,7 @@ const char* SITE_ID    = "fazenda-x_rio-igarape";
 
 // ===================== PINOS DE I/O =====================
 // DS18B20
-const int DS18B20_PIN = 4;  // DATA do DS18B20 (Temperatura)
+const int DS18B20_PIN = 13;  // DATA do DS18B20 (Temperatura)
 
 // Analógicos
 const int PH_PIN        = 34;  // PO do PH4502C

@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 from datetime import datetime, timedelta
 from statistics import mean
 from typing import Dict, List, Optional, Tuple
+
 from google.cloud.firestore_v1 import Query
+
 from app.firestore_client import get_firestore_client
 from app.config import get_settings
 from app.models import TelemetryDocument, Measurement, WaterParameter
-
 
 settings = get_settings()
 db = get_firestore_client()
@@ -29,25 +31,27 @@ def _normalize_param(name: str) -> Optional[WaterParameter]:
     return mapping.get(name_lower)
 
 
-from google.cloud.firestore_v1 import Query
+def default_period(days: int = 1) -> Tuple[datetime, datetime]:
+    now = datetime.now().astimezone()
+    return now - timedelta(days=days), now
+
 
 def get_latest_telemetry(device_id: str, site_id: str) -> Optional[TelemetryDocument]:
     query: Query = (
         db.collection(COLLECTION)
         .where("device_id", "==", device_id)
         .where("site_id", "==", site_id)
-        .order_by("sent_at")          # ASCENDENTE
-        .limit_to_last(1)             # pega o último da ordenação
+        .order_by("sent_at")      # ASC
+        .limit_to_last(1)         # último = mais recente
     )
 
-    docs = list(query.get())
+    docs = query.get()
     if not docs:
         return None
 
     doc = docs[0]
     data = doc.to_dict()
     return _doc_to_model(doc.id, data)
-
 
 
 def get_telemetry_range(
@@ -63,7 +67,7 @@ def get_telemetry_range(
         .where("site_id", "==", site_id)
         .where("sent_at", ">=", start)
         .where("sent_at", "<=", end)
-        .order_by("sent_at")
+        .order_by("sent_at", direction=firestore.Query.DESCENDING)
     )
 
     series: List[Tuple[datetime, float, str]] = []
@@ -83,8 +87,7 @@ def summarize_series(series: List[Tuple[datetime, float, str]]) -> Optional[Dict
 
     timestamps = [t for (t, _, _) in series]
     values = [v for (_, v, _) in series]
-    units = [u for (_, _, u) in series]
-    unit = units[0] if units else ""
+    unit = series[0][2] if series else ""
 
     return {
         "start": min(timestamps),
@@ -97,9 +100,50 @@ def summarize_series(series: List[Tuple[datetime, float, str]]) -> Optional[Dict
     }
 
 
-def default_period_24h() -> Tuple[datetime, datetime]:
-    now = datetime.now().astimezone()
-    return now - timedelta(hours=24), now
+def extreme_in_series(
+    series: List[Tuple[datetime, float, str]], mode: str
+) -> Optional[Dict]:
+    if not series:
+        return None
+    if mode == "max":
+        best = max(series, key=lambda x: x[1])
+    else:
+        best = min(series, key=lambda x: x[1])
+
+    ts, value, unit = best
+    return {"sent_at": ts, "value": value, "unit": unit}
+
+
+def trend_in_series(series: List[Tuple[datetime, float, str]]) -> Optional[Dict]:
+    """
+    Tendência simples:
+    - compara primeira vs última leitura
+    - calcula delta e direção
+    """
+    if len(series) < 2:
+        return None
+
+    first_ts, first_val, unit = series[0]
+    last_ts, last_val, _ = series[-1]
+
+    delta = last_val - first_val
+    if abs(delta) < 1e-9:
+        direction = "stable"
+    elif delta > 0:
+        direction = "up"
+    else:
+        direction = "down"
+
+    return {
+        "start": first_ts,
+        "end": last_ts,
+        "first": first_val,
+        "last": last_val,
+        "delta": delta,
+        "direction": direction,
+        "unit": unit,
+        "count": len(series),
+    }
 
 
 def _doc_to_model(doc_id: str, data: Dict) -> TelemetryDocument:
